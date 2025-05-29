@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { IpcRendererEvent } from 'electron';
 import { openSharedSessionFromDeepLink } from './sessionLinks';
 import SplitLayout from './components/SplitLayout';
-import PlaceholderPanel from './components/PlaceholderPanel';
 import { HtmlResource } from '@mcp-ui/client';
 import { initializeSystem } from './utils/providerUtils';
 import { ErrorUI } from './components/ErrorBoundary';
@@ -430,6 +429,63 @@ export default function App() {
     blob?: string;
   } | null>(null);
 
+  // Handle window resizing when right panel content changes
+  useEffect(() => {
+    const animateWindowResize = async (targetWidth: number, targetHeight: number) => {
+      try {
+        console.log('🔄 htmlResource changed:', htmlResource ? 'has content' : 'no content');
+
+        // Option 1: Use the already-animated backend resize (current implementation)
+        await window.electron.resizeWindow(targetWidth, targetHeight);
+
+        // Option 2: Frontend-controlled step animation (uncomment to use instead)
+        /*
+        const duration = 400; // Slightly longer for frontend control
+        const steps = 15;
+        const stepDuration = duration / steps;
+        
+        // Get current window size (we'd need to add this to the API)
+        // const currentSize = await window.electron.getWindowSize();
+        // const startWidth = currentSize.width;
+        // const startHeight = currentSize.height;
+        
+        // For now, assume current sizes
+        const startWidth = htmlResource ? 800 : 1200;
+        const startHeight = 800;
+        
+        const widthDiff = targetWidth - startWidth;
+        const heightDiff = targetHeight - startHeight;
+        
+        for (let i = 1; i <= steps; i++) {
+          const progress = i / steps;
+          // Custom easing curve
+          const easeProgress = 1 - Math.pow(1 - progress, 3); // easeOut cubic
+          
+          const currentWidth = Math.round(startWidth + widthDiff * easeProgress);
+          const currentHeight = Math.round(startHeight + heightDiff * easeProgress);
+          
+          await window.electron.resizeWindow(currentWidth, currentHeight);
+          await new Promise(resolve => setTimeout(resolve, stepDuration));
+        }
+        */
+
+        console.log('✅ Window resize animation completed');
+      } catch (error) {
+        console.error('❌ Error resizing window:', error);
+      }
+    };
+
+    if (htmlResource) {
+      // Expand window to accommodate right panel
+      console.log('📏 Animating window expansion to 1200x800');
+      animateWindowResize(1200, 800);
+    } else {
+      // Shrink window when no right panel content
+      console.log('📏 Animating window contraction to 800x800');
+      animateWindowResize(800, 800);
+    }
+  }, [htmlResource]);
+
   useEffect(() => {
     if (chat?.messages) {
       console.log('🔥 chat.messages', chat.messages);
@@ -449,6 +505,8 @@ export default function App() {
         return false;
       });
 
+      console.log('🔍 Latest HTML resource message found:', !!latestHtmlResource);
+
       if (latestHtmlResource && Array.isArray(latestHtmlResource.content)) {
         // Find the HTML resource in the content array
         for (const contentItem of latestHtmlResource.content) {
@@ -460,6 +518,7 @@ export default function App() {
                 (valueItem.resource.text || valueItem.resource.blob)
               ) {
                 // Store the full resource object
+                console.log('📄 Found HTML resource:', valueItem.resource);
                 setHtmlResource(valueItem.resource);
                 return;
               }
@@ -467,6 +526,10 @@ export default function App() {
           }
         }
       }
+
+      // If we get here, no HTML resource was found
+      console.log('🚫 No HTML resource found, clearing state');
+      setHtmlResource(null);
     }
   }, [chat?.messages]);
 
@@ -568,9 +631,7 @@ export default function App() {
                       height: '100%',
                     }}
                   />
-                ) : (
-                  <PlaceholderPanel />
-                )
+                ) : undefined
               }
             />
           )}

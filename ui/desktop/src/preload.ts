@@ -58,6 +58,8 @@ type ElectronAPI = {
   writeFile: (directory: string, content: string) => Promise<boolean>;
   getAllowedExtensions: () => Promise<string[]>;
   getPathForFile: (file: File) => string;
+  resizeWindow: (width: number, height: number) => Promise<boolean>;
+  getWindowSize: () => Promise<{ width: number; height: number } | null>;
   on: (
     channel: string,
     callback: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
@@ -117,6 +119,9 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke('write-file', filePath, content),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   getAllowedExtensions: () => ipcRenderer.invoke('get-allowed-extensions'),
+  resizeWindow: (width: number, height: number) =>
+    ipcRenderer.invoke('resize-window', width, height),
+  getWindowSize: () => ipcRenderer.invoke('get-window-size'),
   on: (
     channel: string,
     callback: (event: Electron.IpcRendererEvent, ...args: unknown[]) => void

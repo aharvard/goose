@@ -696,6 +696,71 @@ ipcMain.on('react-ready', () => {
   console.log('[main] React ready - window is prepared for deep links');
 });
 
+// Register resize window handler early
+console.log('🔧 Registering resize-window IPC handler early...');
+ipcMain.handle('resize-window', async (event, targetWidth: number, targetHeight: number) => {
+  console.log(`🔄 Received resize request: ${targetWidth}x${targetHeight}`);
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (window) {
+    const currentSize = window.getSize();
+    console.log(`📐 Current window size: ${currentSize[0]}x${currentSize[1]}`);
+
+    // Animate the window resize
+    await animateWindowResize(window, currentSize[0], currentSize[1], targetWidth, targetHeight);
+
+    console.log(`✅ Window resized and centered successfully`);
+    return true;
+  } else {
+    console.log(`❌ Could not find window for resize request`);
+    return false;
+  }
+});
+
+// Function to animate window resizing
+async function animateWindowResize(
+  window: BrowserWindow,
+  startWidth: number,
+  startHeight: number,
+  targetWidth: number,
+  targetHeight: number
+) {
+  const duration = 300; // Duration in milliseconds
+  const steps = 20; // Number of animation steps
+  const stepDuration = duration / steps;
+
+  const widthDiff = targetWidth - startWidth;
+  const heightDiff = targetHeight - startHeight;
+
+  for (let i = 1; i <= steps; i++) {
+    const progress = i / steps;
+    // Use easeInOut curve for smooth animation
+    const easeProgress =
+      progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+    const currentWidth = Math.round(startWidth + widthDiff * easeProgress);
+    const currentHeight = Math.round(startHeight + heightDiff * easeProgress);
+
+    window.setSize(currentWidth, currentHeight);
+
+    // Wait for next frame
+    await new Promise((resolve) => setTimeout(resolve, stepDuration));
+  }
+
+  // Ensure we end up at exactly the target size
+  window.setSize(targetWidth, targetHeight);
+}
+console.log('✅ resize-window IPC handler registered early');
+
+// Add handler to get current window size for frontend-controlled animations
+ipcMain.handle('get-window-size', (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (window) {
+    const size = window.getSize();
+    return { width: size[0], height: size[1] };
+  }
+  return null;
+});
+
 // Handle directory chooser
 ipcMain.handle('directory-chooser', (_event, replace: boolean = false) => {
   return openDirectoryDialog(replace);

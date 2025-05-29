@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IpcRendererEvent } from 'electron';
 import { openSharedSessionFromDeepLink } from './sessionLinks';
+import SplitLayout from './components/SplitLayout';
+import PlaceholderPanel from './components/PlaceholderPanel';
+import { HtmlResource } from '@mcp-ui/client';
 import { initializeSystem } from './utils/providerUtils';
 import { ErrorUI } from './components/ErrorBoundary';
 import { ConfirmationModal } from './components/ui/ConfirmationModal';
@@ -103,7 +106,7 @@ export default function App() {
     return `${cmd} ${args.join(' ')}`.trim();
   }
 
-  function extractRemoteUrl(link: string): string {
+  function extractRemoteUrl(link: string): string | null {
     const url = new URL(link);
     return url.searchParams.get('url');
   }
@@ -418,6 +421,55 @@ export default function App() {
     setPendingLink(null);
   };
 
+  const [htmlResource, setHtmlResource] = useState<{
+    uri: string;
+    name?: string;
+    description?: string;
+    mimeType: string;
+    text?: string;
+    blob?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (chat?.messages) {
+      console.log('🔥 chat.messages', chat.messages);
+      // Look for the latest tool response with HTML resource
+      const latestHtmlResource = [...chat.messages].reverse().find((msg) => {
+        if (msg.role === 'user' && Array.isArray(msg.content)) {
+          return msg.content.some((contentItem) => {
+            if (contentItem.type === 'toolResponse' && contentItem.toolResult?.value) {
+              return contentItem.toolResult.value.some(
+                (valueItem) =>
+                  valueItem.type === 'resource' && valueItem.resource?.mimeType === 'text/html'
+              );
+            }
+            return false;
+          });
+        }
+        return false;
+      });
+
+      if (latestHtmlResource && Array.isArray(latestHtmlResource.content)) {
+        // Find the HTML resource in the content array
+        for (const contentItem of latestHtmlResource.content) {
+          if (contentItem.type === 'toolResponse' && contentItem.toolResult?.value) {
+            for (const valueItem of contentItem.toolResult.value) {
+              if (
+                valueItem.type === 'resource' &&
+                valueItem.resource?.mimeType === 'text/html' &&
+                (valueItem.resource.text || valueItem.resource.blob)
+              ) {
+                // Store the full resource object
+                setHtmlResource(valueItem.resource);
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
+  }, [chat?.messages]);
+
   if (fatalError) {
     return <ErrorUI error={new Error(fatalError)} />;
   }
@@ -491,12 +543,35 @@ export default function App() {
             <ProviderSettings onClose={() => setView('chat')} isOnboarding={false} />
           )}
           {view === 'chat' && !isLoadingSession && (
-            <ChatView
-              readyForAutoUserPrompt={appInitialized}
-              chat={chat}
-              setChat={setChat}
-              setView={setView}
-              setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
+            <SplitLayout
+              leftPanel={
+                <ChatView
+                  readyForAutoUserPrompt={appInitialized}
+                  chat={chat}
+                  setChat={setChat}
+                  setView={setView}
+                  setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
+                />
+              }
+              rightPanel={
+                htmlResource ? (
+                  <HtmlResource
+                    resource={htmlResource}
+                    onUiAction={async (tool: string, params: Record<string, unknown>) => {
+                      console.log(`UI Action received - Tool: ${tool}, Params:`, params);
+                      return {
+                        status: 'Action handled by host application',
+                        receivedParams: params,
+                      };
+                    }}
+                    style={{
+                      height: '100%',
+                    }}
+                  />
+                ) : (
+                  <PlaceholderPanel />
+                )
+              }
             />
           )}
           {view === 'sessions' && <SessionsView setView={setView} />}

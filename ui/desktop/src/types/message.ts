@@ -21,19 +21,12 @@ export interface ImageContent {
 export interface ResourceContent {
   type: 'resource';
   resource: {
-    resource: {
-      uri: string;
-      name: string;
-      description?: string;
-      mime_type: string;
-      text?: string;
-      blob?: string;
-    };
-    annotations?: {
-      audience?: string[];
-      priority?: number;
-      timestamp?: string;
-    };
+    uri: string;
+    name?: string;
+    description?: string;
+    mimeType: string;
+    text?: string;
+    blob?: string;
   };
 }
 
@@ -237,7 +230,7 @@ export function getToolResponses(message: Message): ToolResponseMessageContent[]
 
 export function getToolConfirmationContent(
   message: Message
-): ToolConfirmationRequestMessageContent {
+): ToolConfirmationRequestMessageContent | undefined {
   return message.content.find(
     (content): content is ToolConfirmationRequestMessageContent =>
       content.type === 'toolConfirmationRequest'

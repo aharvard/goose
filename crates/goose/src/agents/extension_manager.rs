@@ -3,7 +3,11 @@ use chrono::{DateTime, TimeZone, Utc};
 use futures::future;
 use futures::stream::{FuturesUnordered, StreamExt};
 use mcp_client::McpService;
-use mcp_core::protocol::GetPromptResult;
+use mcp_core::{
+    content::{Annotations, Content, EmbeddedResource},
+    protocol::GetPromptResult,
+    resource::ResourceContents,
+};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -18,7 +22,7 @@ use crate::config::{Config, ExtensionConfigManager};
 use crate::prompt_template;
 use mcp_client::client::{ClientCapabilities, ClientInfo, McpClient, McpClientTrait};
 use mcp_client::transport::{SseTransport, StdioTransport, Transport};
-use mcp_core::{prompt::Prompt, Content, Tool, ToolCall, ToolError, ToolResult};
+use mcp_core::{prompt::Prompt, Tool, ToolCall, ToolError, ToolResult};
 use serde_json::Value;
 
 // By default, we set it to Jan 1, 2020 if the resource does not have a timestamp
@@ -518,11 +522,27 @@ impl ExtensionManager {
 
         let mut result = Vec::new();
         for content in read_result.contents {
-            // Only reading the text resource content; skipping the blob content cause it's too long
-            if let mcp_core::resource::ResourceContents::TextResourceContents { text, .. } = content
-            {
-                let content_str = format!("{}\n\n{}", uri, text);
-                result.push(Content::text(content_str));
+            match content {
+                ResourceContents::TextResourceContents { text, uri, mime_type } => {
+                    result.push(Content::Resource(EmbeddedResource {
+                        resource: ResourceContents::TextResourceContents {
+                            text,
+                            uri,
+                            mime_type,
+                        },
+                        annotations: Some(Annotations::for_resource(1.0, Utc::now())),
+                    }));
+                }
+                ResourceContents::BlobResourceContents { blob, uri, mime_type } => {
+                    result.push(Content::Resource(EmbeddedResource {
+                        resource: ResourceContents::BlobResourceContents {
+                            blob,
+                            uri,
+                            mime_type,
+                        },
+                        annotations: Some(Annotations::for_resource(1.0, Utc::now())),
+                    }));
+                }
             }
         }
 
@@ -548,14 +568,19 @@ impl ExtensionManager {
                 ))
             })
             .map(|lr| {
-                let resource_list = lr
-                    .resources
+                lr.resources
                     .into_iter()
-                    .map(|r| format!("{} - {}, uri: ({})", extension_name, r.name, r.uri))
-                    .collect::<Vec<String>>()
-                    .join("\n");
-
-                vec![Content::text(resource_list)]
+                    .map(|r| {
+                        Content::Resource(EmbeddedResource {
+                            resource: ResourceContents::TextResourceContents {
+                                uri: r.uri,
+                                mime_type: Some(r.mime_type),
+                                text: format!("{} - {}", extension_name, r.name),
+                            },
+                            annotations: r.annotations,
+                        })
+                    })
+                    .collect()
             })
     }
 

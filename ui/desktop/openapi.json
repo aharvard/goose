@@ -1743,7 +1743,7 @@
               "text"
             ],
             "properties": {
-              "mime_type": {
+              "mimeType": {
                 "type": "string",
                 "nullable": true
               },
@@ -1765,7 +1765,7 @@
               "blob": {
                 "type": "string"
               },
-              "mime_type": {
+              "mimeType": {
                 "type": "string",
                 "nullable": true
               },

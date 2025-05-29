@@ -6,8 +6,9 @@ use std::{
 
 type PromptFuture = Pin<Box<dyn Future<Output = Result<String, PromptError>> + Send + 'static>>;
 
+use chrono::Utc;
 use mcp_core::{
-    content::Content,
+    content::{Annotations, Content},
     handler::{PromptError, ResourceError, ToolError},
     prompt::{Prompt, PromptMessage, PromptMessageRole},
     protocol::{
@@ -16,7 +17,7 @@ use mcp_core::{
         PromptsCapability, ReadResourceResult, ResourcesCapability, ServerCapabilities,
         ToolsCapability,
     },
-    ResourceContents,
+    resource::{Resource, ResourceContents},
 };
 use serde_json::Value;
 use tower_service::Service;
@@ -230,10 +231,24 @@ pub trait Router: Send + Sync + 'static {
 
             let contents = self.read_resource(uri).await.map_err(RouterError::from)?;
 
+            // Get the resource metadata from active resources
+            let active_resources = self.list_resources();
+            let resource = active_resources
+                .iter()
+                .find(|r| r.uri == uri)
+                .cloned()
+                .unwrap_or_else(|| Resource {
+                    uri: uri.to_string(),
+                    name: uri.split('/').last().unwrap_or("unnamed").to_string(),
+                    description: None,
+                    mime_type: "text/plain".to_string(),
+                    annotations: Some(Annotations::for_resource(1.0, Utc::now())),
+                });
+
             let result = ReadResourceResult {
                 contents: vec![ResourceContents::TextResourceContents {
-                    uri: uri.to_string(),
-                    mime_type: Some("text/plain".to_string()),
+                    uri: resource.uri,
+                    mime_type: Some(resource.mime_type),
                     text: contents,
                 }],
             };

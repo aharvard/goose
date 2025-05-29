@@ -1,4 +1,5 @@
 import React from 'react';
+import { HtmlResource } from '@mcp-ui/client';
 import { Card } from './ui/card';
 import { ToolCallArguments, ToolCallArgumentValue } from './ToolCallArguments';
 import MarkdownContent from './MarkdownContent';
@@ -94,13 +95,31 @@ function ToolCallView({ isCancelledMessage, toolCall, toolResponse }: ToolCallVi
     loadingStatus === 'success' && Array.isArray(toolResponse?.toolResult.value)
       ? toolResponse.toolResult.value
           .filter((item) => {
-            const audience = item.annotations?.audience as string[] | undefined;
+            const annotations =
+              item.type === 'text'
+                ? item.annotations
+                : item.type === 'image'
+                  ? item.annotations
+                  : item.type === 'resource'
+                    ? item.resource.annotations
+                    : undefined;
+            const audience = annotations?.audience as string[] | undefined;
             return !audience || audience.includes('user');
           })
-          .map((item) => ({
-            result: item,
-            isExpandToolResults: ((item.annotations?.priority as number | undefined) ?? -1) >= 0.5,
-          }))
+          .map((item) => {
+            const annotations =
+              item.type === 'text'
+                ? item.annotations
+                : item.type === 'image'
+                  ? item.annotations
+                  : item.type === 'resource'
+                    ? item.resource.annotations
+                    : undefined;
+            return {
+              result: item,
+              isExpandToolResults: ((annotations?.priority as number | undefined) ?? -1) >= 0.5,
+            };
+          })
       : [];
 
   const isShouldExpand = isExpandToolDetails || toolResults.some((v) => v.isExpandToolResults);
@@ -207,12 +226,31 @@ interface ToolResultViewProps {
 }
 
 function ToolResultView({ result, isStartExpanded }: ToolResultViewProps) {
+  const [lastAction, setLastAction] = React.useState<{
+    tool: string;
+    params: Record<string, unknown>;
+  } | null>(null);
+
+  const handleGenericMcpAction = async (tool: string, params: Record<string, unknown>) => {
+    console.log(`Action received in host app - Tool: ${tool}, Params:`, params);
+    setLastAction({ tool, params });
+    return {
+      status: 'Action handled by host application',
+      receivedParams: params,
+    };
+  };
+
   return (
     <ToolCallExpandable
-      label={<span className="pl-[19px] py-1">Output</span>}
+      label={
+        <span className="pl-[19px] py-1">
+          Output: {result.type}{' '}
+          {result.type === 'resource' && result.resource?.uri ? ': ' + result.resource.uri : ''}
+        </span>
+      }
       isStartExpanded={isStartExpanded}
     >
-      <div className="bg-bgApp rounded-b pl-[19px] pr-2 py-4">
+      <div className="bg-bgApp rounded-b px-[19px] py-4">
         {result.type === 'text' && result.text && (
           <MarkdownContent
             content={result.text}
@@ -229,6 +267,22 @@ function ToolResultView({ result, isStartExpanded }: ToolResultViewProps) {
               e.currentTarget.style.display = 'none';
             }}
           />
+        )}
+
+        {result.type === 'resource' && (
+          <HtmlResource
+            resource={result.resource}
+            onUiAction={handleGenericMcpAction}
+            style={{
+              height: '50vh',
+            }}
+          />
+        )}
+        {lastAction && (
+          <div style={{ marginTop: 20, border: '1px solid green', padding: 10 }}>
+            <h3>Last Action Received by Host:</h3>
+            <pre>{JSON.stringify(lastAction, null, 2)}</pre>
+          </div>
         )}
       </div>
     </ToolCallExpandable>

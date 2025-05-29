@@ -31,13 +31,13 @@ pub struct Resource {
 pub enum ResourceContents {
     TextResourceContents {
         uri: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", rename = "mimeType", alias = "mime_type")]
         mime_type: Option<String>,
         text: String,
     },
     BlobResourceContents {
         uri: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(skip_serializing_if = "Option::is_none", rename = "mimeType", alias = "mime_type")]
         mime_type: Option<String>,
         blob: String,
     },
@@ -256,5 +256,64 @@ mod tests {
     fn test_invalid_uri() {
         let result = Resource::new("not-a-uri", None, None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resource_contents_backward_compatibility() -> Result<()> {
+        // Test that we can still deserialize the old snake_case format
+        let old_format_json = r#"{
+            "uri": "ui://my-component/instance-1",
+            "mime_type": "text/html",
+            "text": "<p>Hello World</p>"
+        }"#;
+
+        let resource_contents: ResourceContents = serde_json::from_str(old_format_json)?;
+        
+        match resource_contents {
+            ResourceContents::TextResourceContents { uri, mime_type, text } => {
+                assert_eq!(uri, "ui://my-component/instance-1");
+                assert_eq!(mime_type, Some("text/html".to_string()));
+                assert_eq!(text, "<p>Hello World</p>");
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+
+        // Test that we can also deserialize the new camelCase format
+        let new_format_json = r#"{
+            "uri": "ui://my-component/instance-1",
+            "mimeType": "text/html",
+            "text": "<p>Hello World</p>"
+        }"#;
+
+        let resource_contents: ResourceContents = serde_json::from_str(new_format_json)?;
+        
+        match resource_contents {
+            ResourceContents::TextResourceContents { uri, mime_type, text } => {
+                assert_eq!(uri, "ui://my-component/instance-1");
+                assert_eq!(mime_type, Some("text/html".to_string()));
+                assert_eq!(text, "<p>Hello World</p>");
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_resource_contents_serialization() -> Result<()> {
+        // Test that serialization outputs camelCase mimeType
+        let resource_contents = ResourceContents::TextResourceContents {
+            uri: "ui://my-component/instance-1".to_string(),
+            mime_type: Some("text/html".to_string()),
+            text: "<p>Hello World</p>".to_string(),
+        };
+
+        let serialized = serde_json::to_string(&resource_contents)?;
+        
+        // Should contain mimeType (camelCase) not mime_type (snake_case)
+        assert!(serialized.contains("mimeType"));
+        assert!(!serialized.contains("mime_type"));
+        
+        Ok(())
     }
 }

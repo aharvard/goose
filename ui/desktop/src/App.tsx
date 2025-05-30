@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { IpcRendererEvent } from 'electron';
 import { openSharedSessionFromDeepLink } from './sessionLinks';
 import SplitLayout from './components/SplitLayout';
@@ -429,62 +429,54 @@ export default function App() {
     blob?: string;
   } | null>(null);
 
-  // Handle window resizing when right panel content changes
+  // State for split layout panel management
+  const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
+
+  // Handle panel width changes (now receives actual pixel values)
+  const handlePanelWidthChange = useCallback((leftWidth: number, rightWidth: number) => {
+    console.log(`Panel widths changed - Left: ${leftWidth}px, Right: ${rightWidth}px`);
+  }, []);
+
+  // Handle window resizing when right panel state changes
   useEffect(() => {
     const animateWindowResize = async (targetWidth: number, targetHeight: number) => {
       try {
         console.log('🔄 htmlResource changed:', htmlResource ? 'has content' : 'no content');
+        console.log('🔄 Panel collapsed:', isRightPanelCollapsed);
 
-        // Option 1: Use the already-animated backend resize (current implementation)
         await window.electron.resizeWindow(targetWidth, targetHeight);
-
-        // Option 2: Frontend-controlled step animation (uncomment to use instead)
-        /*
-        const duration = 400; // Slightly longer for frontend control
-        const steps = 15;
-        const stepDuration = duration / steps;
-        
-        // Get current window size (we'd need to add this to the API)
-        // const currentSize = await window.electron.getWindowSize();
-        // const startWidth = currentSize.width;
-        // const startHeight = currentSize.height;
-        
-        // For now, assume current sizes
-        const startWidth = htmlResource ? 800 : 1200;
-        const startHeight = 800;
-        
-        const widthDiff = targetWidth - startWidth;
-        const heightDiff = targetHeight - startHeight;
-        
-        for (let i = 1; i <= steps; i++) {
-          const progress = i / steps;
-          // Custom easing curve
-          const easeProgress = 1 - Math.pow(1 - progress, 3); // easeOut cubic
-          
-          const currentWidth = Math.round(startWidth + widthDiff * easeProgress);
-          const currentHeight = Math.round(startHeight + heightDiff * easeProgress);
-          
-          await window.electron.resizeWindow(currentWidth, currentHeight);
-          await new Promise(resolve => setTimeout(resolve, stepDuration));
-        }
-        */
-
         console.log('✅ Window resize animation completed');
       } catch (error) {
         console.error('❌ Error resizing window:', error);
       }
     };
 
-    if (htmlResource) {
-      // Expand window to accommodate right panel
-      console.log('📏 Animating window expansion to 1200x800');
-      animateWindowResize(1200, 800);
+    // Determine target window size based on panel state
+    if (htmlResource && !isRightPanelCollapsed) {
+      // When expanded: left panel (800px) + right panel (800px) = 1600px total
+      console.log('📏 Animating window expansion to 1600x800');
+      animateWindowResize(1600, 800);
     } else {
-      // Shrink window when no right panel content
+      // When collapsed or no right panel: fixed 800px window (matches left panel width)
       console.log('📏 Animating window contraction to 800x800');
       animateWindowResize(800, 800);
     }
-  }, [htmlResource]);
+  }, [htmlResource, isRightPanelCollapsed]);
+
+  // Handle panel collapse state change
+  const handlePanelCollapseChange = useCallback((collapsed: boolean) => {
+    setIsRightPanelCollapsed(collapsed);
+    console.log(`Right panel ${collapsed ? 'collapsed' : 'expanded'}`);
+  }, []);
+
+  // Toggle function for the header button
+  const toggleRightPanel = useCallback(() => {
+    setIsRightPanelCollapsed((prev) => {
+      const newCollapsed = !prev;
+      console.log(`Right panel ${newCollapsed ? 'collapsed' : 'expanded'}`);
+      return newCollapsed;
+    });
+  }, []);
 
   useEffect(() => {
     if (chat?.messages) {
@@ -614,6 +606,9 @@ export default function App() {
                   setChat={setChat}
                   setView={setView}
                   setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
+                  hasRightPanel={!!htmlResource}
+                  isRightPanelCollapsed={isRightPanelCollapsed}
+                  onToggleRightPanel={toggleRightPanel}
                 />
               }
               rightPanel={
@@ -633,6 +628,9 @@ export default function App() {
                   />
                 ) : undefined
               }
+              onWidthChange={handlePanelWidthChange}
+              onCollapseChange={handlePanelCollapseChange}
+              isCollapsed={isRightPanelCollapsed}
             />
           )}
           {view === 'sessions' && <SessionsView setView={setView} />}

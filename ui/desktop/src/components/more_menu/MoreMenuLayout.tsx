@@ -9,11 +9,19 @@ export default function MoreMenuLayout({
   showMenu = true,
   setView,
   setIsGoosehintsModalOpen,
+  // Panel collapse props
+  hasRightPanel,
+  isRightPanelCollapsed,
+  onToggleRightPanel,
 }: {
   hasMessages?: boolean;
   showMenu?: boolean;
   setView?: (view: View, viewOptions?: ViewOptions) => void;
   setIsGoosehintsModalOpen?: (isOpen: boolean) => void;
+  // Panel collapse props
+  hasRightPanel?: boolean;
+  isRightPanelCollapsed?: boolean;
+  onToggleRightPanel?: () => void;
 }) {
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
@@ -54,7 +62,36 @@ export default function MoreMenuLayout({
             </Tooltip>
           </TooltipProvider>
 
-          <MoreMenu setView={setView} setIsGoosehintsModalOpen={setIsGoosehintsModalOpen} />
+          <div className="flex items-center gap-2">
+            <MoreMenu setView={setView} setIsGoosehintsModalOpen={setIsGoosehintsModalOpen} />
+
+            {/* Panel Collapse/Expand Button */}
+            {hasRightPanel && onToggleRightPanel && (
+              <button
+                onClick={onToggleRightPanel}
+                className="z-[100] no-drag p-1.5 rounded-md bg-transparent hover:bg-bgSubtle border border-transparent hover:border-borderStandard transition-all duration-150 group"
+                title={isRightPanelCollapsed ? 'Show side panel' : 'Hide side panel'}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  className={`text-textSubtle group-hover:text-textStandard transition-transform duration-200 ${
+                    isRightPanelCollapsed ? 'rotate-180' : ''
+                  }`}
+                >
+                  <path
+                    d="M8.5 3.5L5.5 7L8.5 10.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -54,19 +54,28 @@ const isUserMessage = (message: Message): boolean => {
   return true;
 };
 
+export interface ChatViewProps {
+  readyForAutoUserPrompt: boolean;
+  chat: ChatType;
+  setChat: (chat: ChatType) => void;
+  setView: (view: View, viewOptions?: ViewOptions) => void;
+  setIsGoosehintsModalOpen: (isOpen: boolean) => void;
+  // Panel props
+  hasRightPanel?: boolean;
+  isRightPanelCollapsed?: boolean;
+  onToggleRightPanel?: () => void;
+}
+
 export default function ChatView({
   readyForAutoUserPrompt,
   chat,
   setChat,
   setView,
   setIsGoosehintsModalOpen,
-}: {
-  readyForAutoUserPrompt: boolean;
-  chat: ChatType;
-  setChat: (chat: ChatType) => void;
-  setView: (view: View, viewOptions?: ViewOptions) => void;
-  setIsGoosehintsModalOpen: (isOpen: boolean) => void;
-}) {
+  hasRightPanel,
+  isRightPanelCollapsed,
+  onToggleRightPanel,
+}: ChatViewProps) {
   return (
     <ChatContextManagerProvider>
       <ChatContent
@@ -75,6 +84,9 @@ export default function ChatView({
         setChat={setChat}
         setView={setView}
         setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
+        hasRightPanel={hasRightPanel}
+        isRightPanelCollapsed={isRightPanelCollapsed}
+        onToggleRightPanel={onToggleRightPanel}
       />
     </ChatContextManagerProvider>
   );
@@ -86,12 +98,18 @@ function ChatContent({
   setChat,
   setView,
   setIsGoosehintsModalOpen,
+  hasRightPanel,
+  isRightPanelCollapsed,
+  onToggleRightPanel,
 }: {
   readyForAutoUserPrompt: boolean;
   chat: ChatType;
   setChat: (chat: ChatType) => void;
   setView: (view: View, viewOptions?: ViewOptions) => void;
   setIsGoosehintsModalOpen: (isOpen: boolean) => void;
+  hasRightPanel?: boolean;
+  isRightPanelCollapsed?: boolean;
+  onToggleRightPanel?: () => void;
 }) {
   const [hasMessages, setHasMessages] = useState(false);
   const [lastInteractionTime, setLastInteractionTime] = useState<number>(Date.now());
@@ -500,6 +518,9 @@ function ChatContent({
         hasMessages={hasMessages}
         setView={setView}
         setIsGoosehintsModalOpen={setIsGoosehintsModalOpen}
+        hasRightPanel={hasRightPanel}
+        isRightPanelCollapsed={isRightPanelCollapsed}
+        onToggleRightPanel={onToggleRightPanel}
       />
 
       <Card

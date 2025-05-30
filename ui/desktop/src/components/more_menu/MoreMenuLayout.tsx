@@ -69,15 +69,16 @@ export default function MoreMenuLayout({
             {hasRightPanel && onToggleRightPanel && (
               <button
                 onClick={onToggleRightPanel}
-                className="z-[100] no-drag p-1.5 rounded-md bg-transparent hover:bg-bgSubtle border border-transparent hover:border-borderStandard transition-all duration-150 group"
+                className="z-[100] w-7 h-7 p-1 rounded-full border border-borderSubtle transition-colors cursor-pointer no-drag hover:text-textStandard hover:border-borderStandard text-textSubtle flex items-center justify-center"
                 title={isRightPanelCollapsed ? 'Show side panel' : 'Hide side panel'}
+                role="button"
               >
                 <svg
                   width="14"
                   height="14"
                   viewBox="0 0 14 14"
                   fill="none"
-                  className={`text-textSubtle group-hover:text-textStandard transition-transform duration-200 ${
+                  className={`transition-transform duration-200 ${
                     isRightPanelCollapsed ? 'rotate-180' : ''
                   }`}
                 >

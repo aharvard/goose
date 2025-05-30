@@ -19,6 +19,7 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
   const hasRightPanel = !!rightPanel;
   const [leftPanelRatio, setLeftPanelRatio] = useState(0.5); // 50/50 split when both panels visible
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false); // Track window resizing
   const splitPaneRef = useRef<HTMLDivElement>(null);
 
   // Use external collapse state
@@ -50,9 +51,10 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
         const constrainedRatio = Math.min(Math.max(newRatio, 0.2), 0.8);
         setLeftPanelRatio(constrainedRatio);
 
-        // Calculate actual pixel widths
-        const leftWidth = rect.width * constrainedRatio;
-        const rightWidth = rect.width * (1 - constrainedRatio);
+        // Calculate actual pixel widths based on target window size (1600px when expanded)
+        const targetWindowWidth = 1600;
+        const leftWidth = targetWindowWidth * constrainedRatio;
+        const rightWidth = targetWindowWidth * (1 - constrainedRatio);
 
         // Call callback if provided
         if (onWidthChange) {
@@ -82,46 +84,80 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
     [hasRightPanel, isRightPanelCollapsed, onWidthChange]
   );
 
-  // Calculate actual widths as percentages for CSS
-  const getActualWidths = () => {
+  // Calculate target window size and panel widths based on panel state
+  const getTargetSizes = useCallback(() => {
     if (!hasRightPanel || isRightPanelCollapsed) {
-      // When collapsed, left panel keeps fixed width (not percentage)
-      // This prevents it from growing to fill the container
-      return { leftWidth: 'fixed', rightWidth: 0 };
+      // When collapsed, window should be 800px and left panel fills it
+      return {
+        targetWindowWidth: 800,
+        leftPanelWidth: 800,
+        rightPanelWidth: 0,
+        leftWidthPercent: 100,
+        rightWidthPercent: 0,
+      };
+    } else {
+      // When expanded, window should be 1600px (2x), panels split by ratio
+      const targetWindowWidth = 1600;
+      const leftPanelWidth = targetWindowWidth * leftPanelRatio;
+      const rightPanelWidth = targetWindowWidth * (1 - leftPanelRatio);
+
+      return {
+        targetWindowWidth,
+        leftPanelWidth,
+        rightPanelWidth,
+        leftWidthPercent: leftPanelRatio * 100,
+        rightWidthPercent: (1 - leftPanelRatio) * 100,
+      };
     }
+  }, [hasRightPanel, isRightPanelCollapsed, leftPanelRatio]);
 
-    // Both panels visible - use ratio
-    const leftPercentage = leftPanelRatio * 100;
-    const rightPercentage = (1 - leftPanelRatio) * 100;
-
-    return { leftWidth: leftPercentage, rightWidth: rightPercentage };
-  };
-
-  const widthResult = getActualWidths();
-  const leftWidthStyle = widthResult.leftWidth === 'fixed' ? '800px' : `${widthResult.leftWidth}%`;
-  const rightWidthStyle = `${widthResult.rightWidth}%`;
+  const targetSizes = getTargetSizes();
+  const leftWidthStyle = `${targetSizes.leftWidthPercent}%`;
+  const rightWidthStyle = `${targetSizes.rightWidthPercent}%`;
 
   // Notify parent of width changes when collapse state changes
   useEffect(() => {
-    if (hasRightPanel && onWidthChange && splitPaneRef.current) {
-      if (isRightPanelCollapsed) {
-        // Report fixed left panel width when collapsed
-        onWidthChange(800, 0);
-      } else {
-        const containerWidth = splitPaneRef.current.getBoundingClientRect().width;
-        const leftWidth = containerWidth * leftPanelRatio;
-        const rightWidth = containerWidth * (1 - leftPanelRatio);
-        onWidthChange(leftWidth, rightWidth);
-      }
+    if (hasRightPanel && onWidthChange) {
+      const sizes = getTargetSizes();
+      onWidthChange(sizes.leftPanelWidth, sizes.rightPanelWidth);
     }
-  }, [isRightPanelCollapsed, hasRightPanel, leftPanelRatio, onWidthChange]);
+  }, [isRightPanelCollapsed, hasRightPanel, leftPanelRatio, onWidthChange, getTargetSizes]);
+
+  // Listen for window resize events to update width calculations in real-time
+  useEffect(() => {
+    if (!hasRightPanel || !onWidthChange) return;
+
+    let resizeTimeout: number;
+
+    const handleResize = () => {
+      setIsResizing(true);
+
+      // Always report target sizes based on panel state, not container measurements
+      const sizes = getTargetSizes();
+      onWidthChange(sizes.leftPanelWidth, sizes.rightPanelWidth);
+
+      // Reset resizing state after resize stops
+      window.clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(() => {
+        setIsResizing(false);
+      }, 150);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.clearTimeout(resizeTimeout);
+    };
+  }, [hasRightPanel, isRightPanelCollapsed, leftPanelRatio, onWidthChange, getTargetSizes]);
 
   return (
     <div ref={splitPaneRef} className="flex h-full w-full relative">
       {/* Left Panel */}
       <div
         className={`h-full overflow-auto border-r border-borderStandard ${
-          isDragging ? 'pointer-events-none' : 'transition-all duration-300 ease-in-out'
+          isDragging || isResizing
+            ? 'pointer-events-none'
+            : 'transition-all duration-300 ease-in-out'
         }`}
         style={{ width: leftWidthStyle }}
       >
@@ -150,7 +186,9 @@ const SplitLayout: React.FC<SplitLayoutProps> = ({
       {hasRightPanel && (
         <div
           className={`h-full overflow-auto relative ${
-            isDragging ? 'pointer-events-none' : 'transition-all duration-300 ease-in-out'
+            isDragging || isResizing
+              ? 'pointer-events-none'
+              : 'transition-all duration-300 ease-in-out'
           }`}
           style={{
             width: rightWidthStyle,

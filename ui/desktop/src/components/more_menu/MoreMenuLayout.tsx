@@ -13,6 +13,9 @@ export default function MoreMenuLayout({
   hasRightPanel,
   isRightPanelCollapsed,
   onToggleRightPanel,
+  // Auto button props
+  hasManualSelection,
+  onResetToAuto,
 }: {
   hasMessages?: boolean;
   showMenu?: boolean;
@@ -22,6 +25,9 @@ export default function MoreMenuLayout({
   hasRightPanel?: boolean;
   isRightPanelCollapsed?: boolean;
   onToggleRightPanel?: () => void;
+  // Auto button props
+  hasManualSelection?: boolean;
+  onResetToAuto?: () => void;
 }) {
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
@@ -64,6 +70,18 @@ export default function MoreMenuLayout({
 
           <div className="flex items-center gap-2">
             <MoreMenu setView={setView} setIsGoosehintsModalOpen={setIsGoosehintsModalOpen} />
+
+            {/* Auto Button - only show when user has manually selected a resource */}
+            {hasRightPanel && hasManualSelection && onResetToAuto && (
+              <button
+                onClick={onResetToAuto}
+                className="z-[100] px-2 h-7 rounded-full border border-borderSubtle transition-colors cursor-pointer no-drag hover:text-textStandard hover:border-borderStandard text-textSubtle text-xs font-medium flex items-center justify-center"
+                title="Reset to auto mode - show latest HTML resource automatically"
+                role="button"
+              >
+                Auto
+              </button>
+            )}
 
             {/* Panel Collapse/Expand Button */}
             {hasRightPanel && onToggleRightPanel && (

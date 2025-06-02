@@ -1,6 +1,8 @@
 import React from 'react';
 import { HtmlResource } from '@mcp-ui/client';
 import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { ChevronRight } from './icons/ChevronRight';
 import { ToolCallArguments, ToolCallArgumentValue } from './ToolCallArguments';
 import MarkdownContent from './MarkdownContent';
 import { Content, ToolRequestMessageContent, ToolResponseMessageContent } from '../types/message';
@@ -240,6 +242,17 @@ function ToolResultView({ result, isStartExpanded }: ToolResultViewProps) {
     };
   };
 
+  const handleCastToPanel = () => {
+    // Trigger a refresh of the right panel by dispatching a custom event
+    // The App component will listen for this event and update the htmlResource state
+    if (result.type === 'resource' && result.resource?.uri.startsWith('ui://')) {
+      const event = new CustomEvent('refreshRightPanel', {
+        detail: { resource: result.resource },
+      });
+      window.dispatchEvent(event);
+    }
+  };
+
   return (
     <ToolCallExpandable
       label={
@@ -269,15 +282,29 @@ function ToolResultView({ result, isStartExpanded }: ToolResultViewProps) {
           />
         )}
 
-        {result.type === 'resource' && (
-          <HtmlResource
-            resource={result.resource}
-            onUiAction={handleGenericMcpAction}
-            style={{
-              height: '50vh',
-            }}
-          />
+        {result.type === 'resource' && result.resource?.uri.startsWith('ui://') && (
+          <>
+            <div className="mb-4 flex justify-end">
+              <Button
+                onClick={handleCastToPanel}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 bg-black text-white border-black hover:bg-gray-800 hover:border-gray-800"
+              >
+                Cast to panel
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <HtmlResource
+              resource={result.resource}
+              onUiAction={handleGenericMcpAction}
+              style={{
+                height: '50vh',
+              }}
+            />
+          </>
         )}
+
         {lastAction && (
           <div style={{ marginTop: 20, border: '1px solid green', padding: 10 }}>
             <h3>Last Action Received by Host:</h3>

@@ -422,12 +422,12 @@ export default function App() {
 
   const [htmlResource, setHtmlResource] = useState<{
     uri: string;
-    name?: string;
-    description?: string;
     mimeType: string;
     text?: string;
     blob?: string;
   } | null>(null);
+  const [htmlResourceKey, setHtmlResourceKey] = useState<number>(0); // Key to force re-render
+  const [isManuallySelected, setIsManuallySelected] = useState(false); // Track if user manually selected a resource
 
   // State for split layout panel management
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState(false);
@@ -479,7 +479,33 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (chat?.messages) {
+    const handleRefreshRightPanel = (event: {
+      detail?: { resource?: { uri: string; mimeType: string; text?: string; blob?: string } };
+    }) => {
+      console.log('🔄 Refresh right panel event received:', event.detail);
+      // Force a refresh by updating the key
+      setHtmlResourceKey((prev) => prev + 1);
+
+      // Also ensure the right panel is expanded and visible
+      if (event.detail?.resource) {
+        setHtmlResource(event.detail.resource);
+        setIsRightPanelCollapsed(false);
+        setIsManuallySelected(true); // Mark as manually selected
+      }
+    };
+
+    // @ts-expect-error - Custom event handler type mismatch with addEventListener
+    window.addEventListener('refreshRightPanel', handleRefreshRightPanel);
+
+    return () => {
+      // @ts-expect-error - Custom event handler type mismatch with removeEventListener
+      window.removeEventListener('refreshRightPanel', handleRefreshRightPanel);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Only auto-update if user hasn't manually selected a resource
+    if (chat?.messages && !isManuallySelected) {
       console.log('🔥 chat.messages', chat.messages);
       // Look for the latest tool response with HTML resource
       const latestHtmlResource = [...chat.messages].reverse().find((msg) => {
@@ -523,7 +549,31 @@ export default function App() {
       console.log('🚫 No HTML resource found, clearing state');
       setHtmlResource(null);
     }
-  }, [chat?.messages]);
+
+    // Reset manual selection if there are no HTML resources available at all
+    if (chat?.messages && isManuallySelected) {
+      const hasAnyHtmlResource = chat.messages.some((msg) => {
+        if (msg.role === 'user' && Array.isArray(msg.content)) {
+          return msg.content.some((contentItem) => {
+            if (contentItem.type === 'toolResponse' && contentItem.toolResult?.value) {
+              return contentItem.toolResult.value.some(
+                (valueItem) =>
+                  valueItem.type === 'resource' && valueItem.resource?.mimeType === 'text/html'
+              );
+            }
+            return false;
+          });
+        }
+        return false;
+      });
+
+      if (!hasAnyHtmlResource) {
+        console.log('🚫 No HTML resources available, resetting manual selection');
+        setIsManuallySelected(false);
+        setHtmlResource(null);
+      }
+    }
+  }, [chat?.messages, isManuallySelected]);
 
   if (fatalError) {
     return <ErrorUI error={new Error(fatalError)} />;
@@ -614,6 +664,7 @@ export default function App() {
               rightPanel={
                 htmlResource ? (
                   <HtmlResource
+                    key={htmlResourceKey} // Force re-render when key changes
                     resource={htmlResource}
                     onUiAction={async (tool: string, params: Record<string, unknown>) => {
                       console.log(`UI Action received - Tool: ${tool}, Params:`, params);

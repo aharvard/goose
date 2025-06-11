@@ -1,5 +1,5 @@
 import React from 'react';
-import { HtmlResource } from '@mcp-ui/client';
+import { HtmlResource, UiActionResult } from '@mcp-ui/client';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { ChevronRight } from './icons/ChevronRight';
@@ -230,16 +230,12 @@ interface ToolResultViewProps {
 function ToolResultView({ result, isStartExpanded }: ToolResultViewProps) {
   const [lastAction, setLastAction] = React.useState<{
     tool: string;
-    params: Record<string, unknown>;
+    payload: Record<string, unknown>;
   } | null>(null);
 
-  const handleGenericMcpAction = async (tool: string, params: Record<string, unknown>) => {
-    console.log(`Action received in host app - Tool: ${tool}, Params:`, params);
-    setLastAction({ tool, params });
-    return {
-      status: 'Action handled by host application',
-      receivedParams: params,
-    };
+  const handleGenericMcpAction = (result: UiActionResult) => {
+    console.log(`Action:`, result);
+    setLastAction({ tool: result.type, payload: result.payload });
   };
 
   const handleCastToPanel = () => {
@@ -297,7 +293,10 @@ function ToolResultView({ result, isStartExpanded }: ToolResultViewProps) {
             </div>
             <HtmlResource
               resource={result.resource}
-              onUiAction={handleGenericMcpAction}
+              onUiAction={async (result) => {
+                handleGenericMcpAction(result);
+                return { status: 'ok' };
+              }}
               style={{
                 height: '50vh',
               }}

@@ -666,12 +666,9 @@ export default function App() {
                   <HtmlResource
                     key={htmlResourceKey} // Force re-render when key changes
                     resource={htmlResource}
-                    onUiAction={async (tool: string, params: Record<string, unknown>) => {
-                      console.log(`UI Action received - Tool: ${tool}, Params:`, params);
-                      return {
-                        status: 'Action handled by host application',
-                        receivedParams: params,
-                      };
+                    onUiAction={async (result) => {
+                      console.log(`Action:`, result);
+                      return { status: 'ok' };
                     }}
                     style={{
                       height: '100%',

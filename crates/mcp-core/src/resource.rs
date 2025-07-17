@@ -31,13 +31,13 @@ pub struct Resource {
 pub enum ResourceContents {
     TextResourceContents {
         uri: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(rename = "mimeType")]
         mime_type: Option<String>,
         text: String,
     },
     BlobResourceContents {
         uri: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(rename = "mimeType")]
         mime_type: Option<String>,
         blob: String,
     },
@@ -45,6 +45,188 @@ pub enum ResourceContents {
 
 fn default_mime_type() -> String {
     "text".to_string()
+}
+
+impl ResourceContents {
+    /// Creates a new text resource with optional MIME type
+    pub fn new_text<S: Into<String>, T: Into<String>>(uri: S, text_content: T) -> Self {
+        ResourceContents::TextResourceContents {
+            uri: uri.into(),
+            mime_type: None,
+            text: text_content.into(),
+        }
+    }
+
+    /// Creates a new text resource with explicit MIME type
+    pub fn new_text_with_mime_type<S: Into<String>, T: Into<String>, M: Into<String>>(
+        uri: S,
+        text_content: T,
+        mime_type: M,
+    ) -> Self {
+        ResourceContents::TextResourceContents {
+            uri: uri.into(),
+            mime_type: Some(mime_type.into()),
+            text: text_content.into(),
+        }
+    }
+
+    /// Creates a new blob resource with optional MIME type
+    pub fn new_blob<S: Into<String>, T: Into<String>>(uri: S, blob_content: T) -> Self {
+        ResourceContents::BlobResourceContents {
+            uri: uri.into(),
+            mime_type: None,
+            blob: blob_content.into(),
+        }
+    }
+
+    /// Creates a new blob resource with explicit MIME type
+    pub fn new_blob_with_mime_type<S: Into<String>, T: Into<String>, M: Into<String>>(
+        uri: S,
+        blob_content: T,
+        mime_type: M,
+    ) -> Self {
+        ResourceContents::BlobResourceContents {
+            uri: uri.into(),
+            mime_type: Some(mime_type.into()),
+            blob: blob_content.into(),
+        }
+    }
+
+    /// Creates a new HTML resource with text content
+    pub fn html_text<S: Into<String>, T: Into<String>>(uri: S, html_content: T) -> Self {
+        ResourceContents::TextResourceContents {
+            uri: uri.into(),
+            mime_type: Some("text/html".to_string()),
+            text: html_content.into(),
+        }
+    }
+
+    /// Creates a new HTML resource with blob content (base64 encoded)
+    pub fn html_blob<S: Into<String>, T: Into<String>>(uri: S, html_blob: T) -> Self {
+        ResourceContents::BlobResourceContents {
+            uri: uri.into(),
+            mime_type: Some("text/html".to_string()),
+            blob: html_blob.into(),
+        }
+    }
+
+    /// Creates a new URI list resource with text content
+    pub fn uri_list_text<S: Into<String>, T: Into<String>>(uri: S, uri_content: T) -> Self {
+        ResourceContents::TextResourceContents {
+            uri: uri.into(),
+            mime_type: Some("text/uri-list".to_string()),
+            text: uri_content.into(),
+        }
+    }
+
+    /// Creates a new URI list resource with blob content (base64 encoded)
+    pub fn uri_list_blob<S: Into<String>, T: Into<String>>(uri: S, uri_blob: T) -> Self {
+        ResourceContents::BlobResourceContents {
+            uri: uri.into(),
+            mime_type: Some("text/uri-list".to_string()),
+            blob: uri_blob.into(),
+        }
+    }
+
+    /// Creates a new Remote DOM resource with text content (JavaScript)
+    pub fn remote_dom_text<S: Into<String>, T: Into<String>>(uri: S, script_content: T) -> Self {
+        ResourceContents::TextResourceContents {
+            uri: uri.into(),
+            mime_type: Some("application/vnd.mcp-ui.remote-dom".to_string()),
+            text: script_content.into(),
+        }
+    }
+
+    /// Creates a new Remote DOM resource with blob content (base64 encoded JavaScript)
+    pub fn remote_dom_blob<S: Into<String>, T: Into<String>>(uri: S, script_blob: T) -> Self {
+        ResourceContents::BlobResourceContents {
+            uri: uri.into(),
+            mime_type: Some("application/vnd.mcp-ui.remote-dom".to_string()),
+            blob: script_blob.into(),
+        }
+    }
+
+    /// Creates a new Remote DOM resource with text content and flavor
+    pub fn remote_dom_text_with_flavor<S: Into<String>, T: Into<String>, F: Into<String>>(
+        uri: S,
+        script_content: T,
+        flavor: F,
+    ) -> Self {
+        let flavor_str = flavor.into();
+        let mime_type = format!("application/vnd.mcp-ui.remote-dom; flavor={}", flavor_str);
+        ResourceContents::TextResourceContents {
+            uri: uri.into(),
+            mime_type: Some(mime_type),
+            text: script_content.into(),
+        }
+    }
+
+    /// Creates a new Remote DOM resource with blob content and flavor
+    pub fn remote_dom_blob_with_flavor<S: Into<String>, T: Into<String>, F: Into<String>>(
+        uri: S,
+        script_blob: T,
+        flavor: F,
+    ) -> Self {
+        let flavor_str = flavor.into();
+        let mime_type = format!("application/vnd.mcp-ui.remote-dom; flavor={}", flavor_str);
+        ResourceContents::BlobResourceContents {
+            uri: uri.into(),
+            mime_type: Some(mime_type),
+            blob: script_blob.into(),
+        }
+    }
+
+    /// Gets the URI of the resource
+    pub fn uri(&self) -> &str {
+        match self {
+            ResourceContents::TextResourceContents { uri, .. } => uri,
+            ResourceContents::BlobResourceContents { uri, .. } => uri,
+        }
+    }
+
+    /// Gets the MIME type of the resource
+    pub fn mime_type(&self) -> Option<&str> {
+        match self {
+            ResourceContents::TextResourceContents { mime_type, .. } => mime_type.as_deref(),
+            ResourceContents::BlobResourceContents { mime_type, .. } => mime_type.as_deref(),
+        }
+    }
+
+    /// Returns true if this is a UI resource (uri starts with "ui://")
+    pub fn is_ui_resource(&self) -> bool {
+        self.uri().starts_with("ui://")
+    }
+
+    /// Returns true if this is an HTML resource
+    pub fn is_html(&self) -> bool {
+        self.mime_type() == Some("text/html")
+    }
+
+    /// Returns true if this is a URI list resource
+    pub fn is_uri_list(&self) -> bool {
+        self.mime_type() == Some("text/uri-list")
+    }
+
+    /// Returns true if this is a Remote DOM resource
+    pub fn is_remote_dom(&self) -> bool {
+        self.mime_type()
+            .map(|mime| mime.starts_with("application/vnd.mcp-ui.remote-dom"))
+            .unwrap_or(false)
+    }
+
+    /// Gets the flavor from a Remote DOM resource (e.g., "react", "webcomponents")
+    pub fn remote_dom_flavor(&self) -> Option<&str> {
+        if let Some(mime_type) = self.mime_type() {
+            if mime_type.starts_with("application/vnd.mcp-ui.remote-dom") {
+                // Extract flavor from "application/vnd.mcp-ui.remote-dom; flavor=react"
+                // Handle both "; flavor=" and ";flavor=" (with or without space)
+                if let Some(flavor_part) = mime_type.split("flavor=").nth(1) {
+                    return Some(flavor_part.trim());
+                }
+            }
+        }
+        None
+    }
 }
 
 impl Resource {
@@ -256,5 +438,358 @@ mod tests {
     fn test_invalid_uri() {
         let result = Resource::new("not-a-uri", None, None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_resource_contents_html_text() {
+        let resource =
+            ResourceContents::html_text("ui://my-component/instance-1", "<p>Hello World</p>");
+
+        match &resource {
+            ResourceContents::TextResourceContents {
+                uri,
+                mime_type,
+                text,
+            } => {
+                assert_eq!(uri, "ui://my-component/instance-1");
+                assert_eq!(mime_type, &Some("text/html".to_string()));
+                assert_eq!(text, "<p>Hello World</p>");
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(resource.is_html());
+        assert!(!resource.is_uri_list());
+        assert_eq!(resource.uri(), "ui://my-component/instance-1");
+        assert_eq!(resource.mime_type(), Some("text/html"));
+    }
+
+    #[test]
+    fn test_resource_contents_html_blob() {
+        let blob_data = "PGRpdj48aDI+Q29tcGxleCBDb250ZW50PC9oMj48c2NyaXB0PmNvbnNvbGUubG9nKFwiTG9hZGVkIVwiKTwvc2NyaXB0PjwvZGl2Pg==";
+        let resource = ResourceContents::html_blob("ui://my-component/instance-2", blob_data);
+
+        match &resource {
+            ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob,
+            } => {
+                assert_eq!(uri, "ui://my-component/instance-2");
+                assert_eq!(mime_type, &Some("text/html".to_string()));
+                assert_eq!(blob, blob_data);
+            }
+            _ => panic!("Expected BlobResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(resource.is_html());
+        assert!(!resource.is_uri_list());
+    }
+
+    #[test]
+    fn test_resource_contents_uri_list_text() {
+        let resource = ResourceContents::uri_list_text(
+            "ui://analytics-dashboard/main",
+            "https://my.analytics.com/dashboard/123",
+        );
+
+        match &resource {
+            ResourceContents::TextResourceContents {
+                uri,
+                mime_type,
+                text,
+            } => {
+                assert_eq!(uri, "ui://analytics-dashboard/main");
+                assert_eq!(mime_type, &Some("text/uri-list".to_string()));
+                assert_eq!(text, "https://my.analytics.com/dashboard/123");
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(!resource.is_html());
+        assert!(resource.is_uri_list());
+    }
+
+    #[test]
+    fn test_resource_contents_uri_list_blob() {
+        let blob_data = "aHR0cHM6Ly9jaGFydHMuZXhhbXBsZS5jb20vYXBpP3R5cGU9cGllJmRhdGE9MSwyLDM=";
+        let resource = ResourceContents::uri_list_blob("ui://live-chart/session-xyz", blob_data);
+
+        match &resource {
+            ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob,
+            } => {
+                assert_eq!(uri, "ui://live-chart/session-xyz");
+                assert_eq!(mime_type, &Some("text/uri-list".to_string()));
+                assert_eq!(blob, blob_data);
+            }
+            _ => panic!("Expected BlobResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(!resource.is_html());
+        assert!(resource.is_uri_list());
+    }
+
+    #[test]
+    fn test_resource_contents_remote_dom_text() {
+        let script = r#"
+            const button = document.createElement('ui-button');
+            button.setAttribute('label', 'Click me!');
+            root.appendChild(button);
+        "#;
+        let resource = ResourceContents::remote_dom_text("ui://remote-component/button-1", script);
+
+        match &resource {
+            ResourceContents::TextResourceContents {
+                uri,
+                mime_type,
+                text,
+            } => {
+                assert_eq!(uri, "ui://remote-component/button-1");
+                assert_eq!(mime_type, &Some("application/vnd.mcp-ui.remote-dom".to_string()));
+                assert_eq!(text, script);
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(!resource.is_html());
+        assert!(!resource.is_uri_list());
+        assert!(resource.is_remote_dom());
+        assert_eq!(resource.remote_dom_flavor(), None); // No flavor specified
+    }
+
+    #[test]
+    fn test_resource_contents_remote_dom_blob() {
+        let blob_data = "Y29uc3QgYnV0dG9uID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgndWktYnV0dG9uJyk7";
+        let resource = ResourceContents::remote_dom_blob("ui://remote-component/button-2", blob_data);
+
+        match &resource {
+            ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob,
+            } => {
+                assert_eq!(uri, "ui://remote-component/button-2");
+                assert_eq!(mime_type, &Some("application/vnd.mcp-ui.remote-dom".to_string()));
+                assert_eq!(blob, blob_data);
+            }
+            _ => panic!("Expected BlobResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(!resource.is_html());
+        assert!(!resource.is_uri_list());
+        assert!(resource.is_remote_dom());
+        assert_eq!(resource.remote_dom_flavor(), None); // No flavor specified
+    }
+
+    #[test]
+    fn test_resource_contents_remote_dom_with_flavor() {
+        let script = "const button = document.createElement('ui-button');";
+        let resource = ResourceContents::remote_dom_text_with_flavor(
+            "ui://remote-component/react-button",
+            script,
+            "react",
+        );
+
+        match &resource {
+            ResourceContents::TextResourceContents {
+                uri,
+                mime_type,
+                text,
+            } => {
+                assert_eq!(uri, "ui://remote-component/react-button");
+                assert_eq!(mime_type, &Some("application/vnd.mcp-ui.remote-dom; flavor=react".to_string()));
+                assert_eq!(text, script);
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(!resource.is_html());
+        assert!(!resource.is_uri_list());
+        assert!(resource.is_remote_dom());
+        assert_eq!(resource.remote_dom_flavor(), Some("react"));
+    }
+
+    #[test]
+    fn test_resource_contents_remote_dom_blob_with_flavor() {
+        let blob_data = "Y29uc3QgYnV0dG9uID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgndWktYnV0dG9uJyk7";
+        let resource = ResourceContents::remote_dom_blob_with_flavor(
+            "ui://remote-component/webcomponent-button",
+            blob_data,
+            "webcomponents",
+        );
+
+        match &resource {
+            ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob,
+            } => {
+                assert_eq!(uri, "ui://remote-component/webcomponent-button");
+                assert_eq!(mime_type, &Some("application/vnd.mcp-ui.remote-dom; flavor=webcomponents".to_string()));
+                assert_eq!(blob, blob_data);
+            }
+            _ => panic!("Expected BlobResourceContents"),
+        }
+
+        assert!(resource.is_ui_resource());
+        assert!(!resource.is_html());
+        assert!(!resource.is_uri_list());
+        assert!(resource.is_remote_dom());
+        assert_eq!(resource.remote_dom_flavor(), Some("webcomponents"));
+    }
+
+    #[test]
+    fn test_remote_dom_flavor_parsing() {
+        // Test various flavor formats
+        let test_cases = vec![
+            ("application/vnd.mcp-ui.remote-dom; flavor=react", Some("react")),
+            ("application/vnd.mcp-ui.remote-dom; flavor=webcomponents", Some("webcomponents")),
+            ("application/vnd.mcp-ui.remote-dom;flavor=react", Some("react")), // No space
+            ("application/vnd.mcp-ui.remote-dom; flavor= react ", Some("react")), // Extra spaces
+            ("application/vnd.mcp-ui.remote-dom", None), // No flavor
+            ("text/html", None), // Different MIME type
+        ];
+
+        for (mime_type, expected_flavor) in test_cases {
+            let resource = ResourceContents::TextResourceContents {
+                uri: "ui://test".to_string(),
+                mime_type: Some(mime_type.to_string()),
+                text: "script".to_string(),
+            };
+            assert_eq!(resource.remote_dom_flavor(), expected_flavor, "Failed for MIME type: {}", mime_type);
+        }
+    }
+
+    #[test]
+    fn test_new_text_without_mime_type_inference() {
+        // Test that new_text doesn't automatically infer MIME types
+        let resource = ResourceContents::new_text("ui://component-html-as-text", "<p>Hello</p>");
+        match &resource {
+            ResourceContents::TextResourceContents {
+                uri,
+                mime_type,
+                text,
+            } => {
+                assert_eq!(uri, "ui://component-html-as-text");
+                assert_eq!(mime_type, &None); // No automatic inference
+                assert_eq!(text, "<p>Hello</p>");
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+
+        // Test explicit MIME type setting
+        let resource = ResourceContents::new_text_with_mime_type(
+            "ui://component-html-as-text",
+            "<p>Hello</p>",
+            "text/html",
+        );
+        match &resource {
+            ResourceContents::TextResourceContents {
+                uri,
+                mime_type,
+                text,
+            } => {
+                assert_eq!(uri, "ui://component-html-as-text");
+                assert_eq!(mime_type, &Some("text/html".to_string()));
+                assert_eq!(text, "<p>Hello</p>");
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
+    }
+
+    #[test]
+    fn test_new_blob_without_mime_type_inference() {
+        // Test that new_blob doesn't automatically infer MIME types
+        let resource = ResourceContents::new_blob("ui://component-html-as-blob", "base64data");
+        match &resource {
+            ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob,
+            } => {
+                assert_eq!(uri, "ui://component-html-as-blob");
+                assert_eq!(mime_type, &None); // No automatic inference
+                assert_eq!(blob, "base64data");
+            }
+            _ => panic!("Expected BlobResourceContents"),
+        }
+
+        // Test explicit MIME type setting
+        let resource = ResourceContents::new_blob_with_mime_type(
+            "ui://component-html-as-blob",
+            "base64data",
+            "text/html",
+        );
+        match &resource {
+            ResourceContents::BlobResourceContents {
+                uri,
+                mime_type,
+                blob,
+            } => {
+                assert_eq!(uri, "ui://component-html-as-blob");
+                assert_eq!(mime_type, &Some("text/html".to_string()));
+                assert_eq!(blob, "base64data");
+            }
+            _ => panic!("Expected BlobResourceContents"),
+        }
+    }
+
+    #[test]
+    fn test_serialization_matches_frontend_expectations() {
+        // Test that serialized JSON matches what the frontend expects
+        let resource_with_mime_type =
+            ResourceContents::html_text("ui://component-html-as-text", "<p>Hello</p>");
+        let json_with_mime_type = serde_json::to_string(&resource_with_mime_type).unwrap();
+        println!("With MIME type: {}", json_with_mime_type);
+
+        // Should contain mimeType field with "text/html" value
+        assert!(json_with_mime_type.contains("\"mimeType\":\"text/html\""));
+
+        let resource_without_mime_type =
+            ResourceContents::new_text("ui://some-resource", "content");
+        let json_without_mime_type = serde_json::to_string(&resource_without_mime_type).unwrap();
+        println!("Without MIME type: {}", json_without_mime_type);
+
+        // Should contain mimeType field with null value (not omitted)
+        assert!(json_without_mime_type.contains("\"mimeType\":null"));
+
+        // Verify both can be deserialized by frontend
+        let _: serde_json::Value = serde_json::from_str(&json_with_mime_type).unwrap();
+        let _: serde_json::Value = serde_json::from_str(&json_without_mime_type).unwrap();
+    }
+
+    #[test]
+    fn test_serialization_with_none_mime_type() {
+        // Test that mime_type is serialized even when None
+        let resource = ResourceContents::TextResourceContents {
+            uri: "ui://test".to_string(),
+            mime_type: None,
+            text: "content".to_string(),
+        };
+
+        let json = serde_json::to_string(&resource).unwrap();
+        println!("Serialized JSON: {}", json);
+
+        // Verify that mimeType field is present in JSON (even if null)
+        assert!(json.contains("mimeType"));
+
+        // Verify deserialization works
+        let deserialized: ResourceContents = serde_json::from_str(&json).unwrap();
+        match deserialized {
+            ResourceContents::TextResourceContents { mime_type, .. } => {
+                assert_eq!(mime_type, None);
+            }
+            _ => panic!("Expected TextResourceContents"),
+        }
     }
 }

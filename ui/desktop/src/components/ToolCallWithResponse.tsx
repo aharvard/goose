@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { ToolCallArguments, ToolCallArgumentValue } from './ToolCallArguments';
 import MarkdownContent from './MarkdownContent';
-import { Content, ToolRequestMessageContent, ToolResponseMessageContent } from '../types/message';
+import ResourceRenderer from './ResourceRenderer';
+import { Content, ToolRequestMessageContent, ToolResponseMessageContent, ResourceContent } from '../types/message';
 import { cn, snakeToTitleCase } from '../utils';
 import Dot, { LoadingStatus } from './ui/Dot';
 import { NotificationEvent } from '../hooks/useMessageStream';
@@ -506,6 +507,12 @@ function ToolResultView({ result, isStartExpanded }: ToolResultViewProps) {
               console.error('Failed to load image');
               e.currentTarget.style.display = 'none';
             }}
+          />
+        )}
+        {result.type === 'resource' && (
+          <ResourceRenderer 
+            resource={result as ResourceContent}
+            className="max-w-full"
           />
         )}
       </div>

@@ -18,7 +18,18 @@ export interface ImageContent {
   annotations?: Record<string, unknown>;
 }
 
-export type Content = TextContent | ImageContent;
+export interface ResourceContent {
+  type: 'resource';
+  resource: {
+    uri: string;
+    mime_type?: string;
+    text?: string;
+    blob?: string;
+  };
+  annotations?: Record<string, unknown>;
+}
+
+export type Content = TextContent | ImageContent | ResourceContent;
 
 export interface ToolCall {
   name: string;
@@ -86,6 +97,7 @@ export interface SummarizationRequestedContent {
 export type MessageContent =
   | TextContent
   | ImageContent
+  | ResourceContent
   | ToolRequestMessageContent
   | ToolResponseMessageContent
   | ToolConfirmationRequestMessageContent

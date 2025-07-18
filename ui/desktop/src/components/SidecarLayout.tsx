@@ -371,6 +371,7 @@ export function SidecarProvider({ children, showSidecar = true }: SidecarProvide
 export function Sidecar({ className = '' }: { className?: string }) {
   const sidecar = useSidecar();
   const [viewMode, setViewMode] = useState<'split' | 'unified'>('unified');
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Update the diff viewer when view mode changes
   useEffect(() => {
@@ -402,6 +403,17 @@ export function Sidecar({ className = '' }: { className?: string }) {
     }
   }, [viewMode, sidecar]);
 
+  // Handle animation when sidecar becomes visible
+  useEffect(() => {
+    if (sidecar?.activeView) {
+      setIsAnimating(true);
+      // Reset animation state after animation completes
+      const timer = setTimeout(() => setIsAnimating(false), 300);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [sidecar?.activeView]);
+
   if (!sidecar) return null;
 
   const { activeView, views, hideView } = sidecar;
@@ -415,7 +427,12 @@ export function Sidecar({ className = '' }: { className?: string }) {
 
   return (
     <div
-      className={`bg-background-default overflow-hidden rounded-2xl flex flex-col m-5 ${className}`}
+      className={`bg-background-default overflow-hidden rounded-2xl flex flex-col m-5 transform transition-all duration-300 ease-out ${
+        isAnimating ? 'animate-slide-in-right' : ''
+      } ${className}`}
+      style={{
+        animation: isAnimating ? 'slideInRight 0.3s ease-out' : undefined,
+      }}
     >
       {currentView && (
         <>
@@ -500,6 +517,19 @@ export function Sidecar({ className = '' }: { className?: string }) {
           </div>
         </>
       )}
+      
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }
